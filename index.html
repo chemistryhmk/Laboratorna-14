@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Віртуальний лабораторний тренажер № 14</title>
+    <!-- Підключення бібліотеки html2pdf для безвідмовного збереження звітів на будь-яких пристроях -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #fdfaf2;
+            --panel-bg: #f4efe2;
+            --text-color: #2b261f;
+            --accent-color: #8c2d19;
+            --border-color: #d1c7bd;
+            --success-color: #2e6f40;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            font-size: 18px;
+            line-height: 1.5;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+        }
+
+        h1 { font-size: 26px; color: var(--accent-color); text-align: center; margin-bottom: 5px; font-weight: 700; }
+        h2 { font-size: 20px; color: var(--text-color); text-align: center; margin-top: 5px; margin-bottom: 20px; }
+        h3 { font-size: 19px; color: var(--accent-color); border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        .progress-bar {
+            height: 8px;
+            background-color: var(--border-color);
+            width: 100%;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: var(--success-color);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* Лабораторний стіл */
+        .lab-bench {
+            background: #ffffff;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            min-height: 380px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            position: relative;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.02);
+            overflow: visible;
+        }
+
+        /* Штатив з пробірками */
+        .rack {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            margin-top: 10px;
+            border-bottom: 4px solid #8b7d70;
+            padding-bottom: 10px;
+            position: relative;
+            z-index: 2;
+            width: 100%;
+        }
+
+        /* Організація Досліду 2 у три секції */
+        .rack-sections {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .mini-rack {
+            background: rgba(244, 239, 226, 0.4);
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .mini-rack-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .mini-rack-tubes {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            border-bottom: 4px solid #8b7d70;
+            padding-bottom: 5px;
+        }
+
+        .tube-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 45%;
+            position: relative;
+        }
+
+        .tube-title {
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            min-height: 48px;
+            color: #4a423a;
+            line-height: 1.2;
+        }
+
+        .test-tube {
+            width: 40px;
+            height: 160px;
+            border: 3px solid #b0c4de;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.45);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .test-tube:hover {
+            transform: scale(1.03);
+        }
+
+        .liquid {
+            width: 100%;
+            height: 0%;
+            border-bottom-left-radius: 17px;
+            border-bottom-right-radius: 17px;
+            transition: height 0.8s ease, background-color 0.8s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        /* Осади */
+        .precipitate {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background-color: transparent;
+            border-bottom-left-radius: 17px;
+            border-bottom-right-radius: 17px;
+            transition: height 0.8s ease, background-color 0.8s ease;
+            z-index: 3;
+            opacity: 0.95;
+        }
+
+        /* Залізна стружка */
+        .iron-shavings {
+            position: absolute;
+            bottom: 2px;
+            width: 26px;
+            height: 10px;
+            background: repeating-linear-gradient(45deg, #555, #555 2px, #777 2px, #777 4px);
+            border-radius: 3px;
+            display: none;
+            z-index: 4;
+        }
+
+        /* Ефект бурого газу (пари) */
+        .vapor {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, transparent 10%, rgba(139, 69, 19, 0.75) 90%);
+            opacity: 0;
+            transition: opacity 1.5s ease;
+            z-index: 2;
+            pointer-events: none;
+            border-bottom-left-radius: 17px;
+            border-bottom-right-radius: 17px;
+        }
+
+        /* Інтерактивна піпетка */
+        .pipette {
+            position: absolute;
+            top: -55px;
+            width: 8px;
+            height: 50px;
+            background: rgba(220, 220, 220, 0.7);
+            border: 1px solid #999;
+            border-radius: 2px;
+            display: none;
+            z-index: 10;
+            transform-origin: top center;
+        }
+        .pipette::before {
+            content: '';
+            position: absolute;
+            top: -12px;
+            left: -3px;
+            width: 14px;
+            height: 12px;
+            background: #b33c24;
+            border-radius: 4px 4px 2px 2px;
+        }
+
+        .drop {
+            position: absolute;
+            width: 6px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            top: 5px;
+            left: 1px;
+            opacity: 0;
+            z-index: 9;
+        }
+
+        @keyframes drip {
+            0% { top: 0px; opacity: 1; transform: scaleY(1.2); }
+            100% { top: 110px; opacity: 0; transform: scaleY(0.8); }
+        }
+
+        /* Спиртівка */
+        .spirit-lamp {
+            width: 55px;
+            height: 40px;
+            background: #a1b5cb;
+            border-radius: 50% 50% 8px 8px;
+            position: absolute;
+            bottom: 15px;
+            left: calc(50% - 27.5px);
+            border: 2px solid #788ba1;
+            transition: left 0.6s ease-in-out;
+            display: none;
+            z-index: 3;
+        }
+
+        .spirit-lamp::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 18px;
+            width: 15px;
+            height: 10px;
+            background: #566473;
+            border-radius: 2px;
+        }
+
+        .wick-fire {
+            width: 14px;
+            height: 28px;
+            background: radial-gradient(circle at bottom, #ffea00 20%, #ff5100 90%);
+            border-radius: 50% 50% 20% 20%;
+            position: absolute;
+            top: -34px;
+            left: 18px;
+            display: none;
+            animation: flicker 0.1s infinite alternate;
+            box-shadow: 0 0 12px rgba(255,81,0,0.7);
+        }
+
+        @keyframes flicker {
+            0% { transform: scaleX(0.9) rotate(-1deg); }
+            100% { transform: scaleX(1.1) rotate(1deg); }
+        }
+
+        /* Газ */
+        .bubbles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            bottom: 0;
+            left: 0;
+            display: none;
+            z-index: 2;
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            bottom: 5px;
+            animation: bubbleUp 0.7s infinite linear;
+        }
+
+        @keyframes bubbleUp {
+            0% { transform: translateY(0) scale(0.4); opacity: 1; left: var(--b-l); }
+            100% { transform: translateY(-90px) scale(1.1); opacity: 0; left: var(--b-l); }
+        }
+
+        /* Керування */
+        .controls {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-top: 15px;
+        }
+
+        .tool-rack {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .interactive-btn {
+            font-size: 15px;
+            padding: 12px 18px;
+            background-color: #fcfbfa;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .interactive-btn:hover {
+            border-color: var(--accent-color);
+            background-color: #fff4f2;
+        }
+        .interactive-btn.active-tool {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        .step-instruction {
+            background: #fff8eb;
+            border-left: 6px solid var(--accent-color);
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .question-box {
+            background: #eef7f0;
+            border-left: 6px solid var(--success-color);
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+
+        select, input[type="text"] {
+            font-size: 16px;
+            padding: 12px;
+            border-radius: 6px;
+            border: 2px solid var(--border-color);
+            margin-top: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button.action-btn {
+            font-size: 18px;
+            padding: 12px 24px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+            width: 100%;
+        }
+        button.action-btn:hover { background-color: #aa3a22; }
+
+        /* Стилі для відображення академічного звіту */
+        #report-text {
+            background: white;
+            padding: 30px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+            overflow: visible; /* Запобігає обрізанню контенту при друку */
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        sub {
+            font-size: 11px;
+            bottom: -0.2em;
+        }
+
+        @media (max-width: 768px) {
+            .rack-sections {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .test-tube {
+                width: 38px;
+                height: 140px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 5px; font-size: 16px; }
+            .container { padding: 12px; }
+            h1 { font-size: 22px; }
+            h2 { font-size: 17px; }
+            .interactive-btn { font-size: 13px; padding: 10px 14px; width: 100%; text-align: center; }
+            .step-instruction { font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ЛАБОРАТОРНА РОБОТА № 14</h1>
+    <h2>Тема: Дослідження властивостей заліза та його сполук</h2>
+    
+    <div class="progress-bar">
+        <div class="progress-fill" id="labProgress"></div>
+    </div>
+
+    <!-- ЕКРАН 1: РЕЄСТРАЦІЯ -->
+    <div id="scr-auth" class="screen active">
+        <div class="step-instruction">
+            <strong>Мета роботи:</strong> Дослідити хімічні властивості заліза та його сполук, навчитися проводити якісні реакції на іони Fe<sup>2+</sup> та Fe<sup>3+</sup>.
+        </div>
+        <div style="text-align: center; margin-top: 30px;">
+            <label style="font-size: 20px; font-weight: bold;">Введіть ваше Прізвище та Ім'я для початку:</label>
+            <input type="text" id="studName" placeholder="Мельник Артем">
+            <br><br>
+            <button class="action-btn" onclick="initLab()">Увійти до лабораторії</button>
+        </div>
+    </div>
+
+    <!-- ЕКРАН 2: ДОСЛІД 1 -->
+    <div id="scr-exp1" class="screen">
+        <h3>ДОСЛІД № 1. Взаємодія заліза з кислотами</h3>
+        <div class="step-instruction" id="exp1-guide">
+            <strong>Крок 1:</strong> Оберіть інструмент <strong>"Залізна стружка Fe"</strong> та послідовно внесіть її у кожну з трьох пробірок.
+        </div>
+
+        <div class="lab-bench">
+            <div class="rack" id="rack1">
+                <div class="tube-wrapper" id="w1">
+                    <div class="tube-title" id="t1-title">Пробірка № 1</div>
+                    <div class="test-tube" id="tube1" onclick="interactTube1(1)">
+                        <div class="pipette" id="pip1"><div class="drop" id="drop1"></div></div>
+                        <div class="liquid" id="liq1">
+                            <div class="bubbles" id="bub1"></div>
+                        </div>
+                        <div class="iron-shavings" id="shav1"></div>
+                    </div>
+                </div>
+                <div class="tube-wrapper" id="w2">
+                    <div class="tube-title" id="t2-title">Пробірка № 2</div>
+                    <div class="test-tube" id="tube2" onclick="interactTube1(2)">
+                        <div class="pipette" id="pip2"><div class="drop" id="drop2"></div></div>
+                        <div class="liquid" id="liq2">
+                            <div class="bubbles" id="bub2"></div>
+                        </div>
+                        <div class="iron-shavings" id="shav2"></div>
+                    </div>
+                </div>
+                <div class="tube-wrapper" id="w3">
+                    <div class="tube-title" id="t3-title">Пробірка № 3</div>
+                    <div class="test-tube" id="tube3" onclick="interactTube1(3)">
+                        <div class="pipette" id="pip3"><div class="drop" id="drop3"></div></div>
+                        <div class="vapor" id="vapor3"></div>
+                        <div class="liquid" id="liq3">
+                            <div class="bubbles" id="bub3"></div>
+                        </div>
+                        <div class="iron-shavings" id="shav3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="spirit-lamp" id="lamp1"><div class="wick-fire" id="fire1"></div></div>
+        </div>
+
+        <div class="controls">
+            <div class="tool-rack" id="tools-e1">
+                <button class="interactive-btn" id="tool-fe" onclick="selectTool1('fe')">🧪 Залізна стружка Fe</button>
+                <button class="interactive-btn" id="tool-hcl" onclick="selectTool1('hcl')" disabled>💧 Розбавлена HCl</button>
+                <button class="interactive-btn" id="tool-h2so4" onclick="selectTool1('h2so4')" disabled>💧 Концентрована H<sub>2</sub>SO<sub>4</sub></button>
+                <button class="interactive-btn" id="tool-hno3" onclick="selectTool1('hno3')" disabled>💧 Концентрована HNO<sub>3</sub></button>
+                <button class="interactive-btn" id="tool-heat1" onclick="selectTool1('heat1')" disabled>🔥 Запалити спиртівку та нагріти</button>
+            </div>
+
+            <div class="question-box" id="q-box-e1" style="display: none;">
+                <label><strong>Завдання на спостереження:</strong> Оберіть правильне твердження про поведінку заліза в концентрованих кислотах (H<sub>2</sub>SO<sub>4</sub>, HNO<sub>3</sub>) на холоді та при нагріванні:</label>
+                <select id="ans-e1">
+                    <option value="">-- Оберіть правильну наукову відповідь --</option>
+                    <option value="correct">На холоді концентровані H2SO4 та HNO3 пасивують залізо, реакція відсутня. При нагріванні пасивуюча плівка руйнується і починається бурхлива взаємодія з виділенням газів (SO2 або NO2 відповідно).</option>
+                    <option value="wrong1">Залізо інтенсивно розчиняється у концентрованих кислотах на холоді з виділенням чистого водню.</option>
+                    <option value="wrong2">Нагрівання не впливає на пасивацію, залізо залишається стійким навіть при кип'ятінні у нітратній кислоті.</option>
+                </select>
+                <br>
+                <button class="action-btn" onclick="submitExp1()">Підтвердити та перейти до Досліду № 2</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЕКРАН 3: ДОСЛІД 2 -->
+    <div id="scr-exp2" class="screen">
+        <h3>ДОСЛІД № 2. Виявлення у розчині іонів Fe<sup>2+</sup> та Fe<sup>3+</sup></h3>
+        <div class="step-instruction" id="exp2-guide">
+            <strong>Крок 1:</strong> Ми маємо 3 окремі пари пробірок для кожного реактиву. Оберіть реактив <strong>"K<sub>3</sub>[Fe(CN)<sub>6</sub>]"</strong> та додайте його в першу пару пробірок (1 та 2).
+        </div>
+
+        <div class="lab-bench">
+            <div class="rack-sections">
+                <!-- Mini Rack A: K3[Fe(CN)6] -->
+                <div class="mini-rack" id="mr1">
+                    <div class="mini-rack-title">А: Дія K<sub>3</sub>[Fe(CN)<sub>6</sub>]</div>
+                    <div class="mini-rack-tubes">
+                        <div class="tube-wrapper">
+                            <div class="tube-title" id="e2-t1-title">1: FeSO<sub>4</sub></div>
+                            <div class="test-tube" id="e2-tube1" onclick="interactTube2(1)">
+                                <div class="pipette" id="e2-pip1"><div class="drop" id="e2-drop1"></div></div>
+                                <div class="liquid" id="e2-liq1" style="height: 40%; background-color: rgba(220, 245, 220, 0.5);">
+                                    <div class="precipitate" id="e2-prep1"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tube-wrapper">
+                            <div class="tube-title" id="e2-t2-title">2: FeCl<sub>3</sub></div>
+                            <div class="test-tube" id="e2-tube2" onclick="interactTube2(2)">
+                                <div class="pipette" id="e2-pip2"><div class="drop" id="e2-drop2"></div></div>
+                                <div class="liquid" id="e2-liq2" style="height: 40%; background-color: rgba(245, 222, 179, 0.6);">
+                                    <div class="precipitate" id="e2-prep2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mini Rack B: K4[Fe(CN)6] -->
+                <div class="mini-rack" id="mr2">
+                    <div class="mini-rack-title">Б: Дія K<sub>4</sub>[Fe(CN)<sub>6</sub>]</div>
+                    <div class="mini-rack-tubes">
+                        <div class="tube-wrapper">
+                            <div class="tube-title" id="e2-t3-title">3: FeSO<sub>4</sub></div>
+                            <div class="test-tube" id="e2-tube3" onclick="interactTube2(3)">
+                                <div class="pipette" id="e2-pip3"><div class="drop" id="e2-drop3"></div></div>
+                                <div class="liquid" id="e2-liq3" style="height: 40%; background-color: rgba(220, 245, 220, 0.5);">
+                                    <div class="precipitate" id="e2-prep3"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tube-wrapper">
+                            <div class="tube-title" id="e2-t4-title">4: FeCl<sub>3</sub></div>
+                            <div class="test-tube" id="e2-tube4" onclick="interactTube2(4)">
+                                <div class="pipette" id="e2-pip4"><div class="drop" id="e2-drop4"></div></div>
+                                <div class="liquid" id="e2-liq4" style="height: 40%; background-color: rgba(245, 222, 179, 0.6);">
+                                    <div class="precipitate" id="e2-prep4"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mini Rack C: KSCN -->
+                <div class="mini-rack" id="mr3">
+                    <div class="mini-rack-title">В: Дія KSCN</div>
+                    <div class="mini-rack-tubes">
+                        <div class="tube-wrapper">
+                            <div class="tube-title" id="e2-t5-title">5: FeSO<sub>4</sub></div>
+                            <div class="test-tube" id="e2-tube5" onclick="interactTube2(5)">
+                                <div class="pipette" id="e2-pip5"><div class="drop" id="e2-drop5"></div></div>
+                                <div class="liquid" id="e2-liq5" style="height: 40%; background-color: rgba(220, 245, 220, 0.5);">
+                                    <div class="precipitate" id="e2-prep5"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tube-wrapper">
+                            <div class="tube-title" id="e2-t6-title">6: FeCl<sub>3</sub></div>
+                            <div class="test-tube" id="e2-tube6" onclick="interactTube2(6)">
+                                <div class="pipette" id="e2-pip6"><div class="drop" id="e2-drop6"></div></div>
+                                <div class="liquid" id="e2-liq6" style="height: 40%; background-color: rgba(245, 222, 179, 0.6);">
+                                    <div class="precipitate" id="e2-prep6"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="tool-rack" id="tools-e2">
+                <button class="interactive-btn" id="tool-k3" onclick="selectTool2('k3')">🧪 Реактив K<sub>3</sub>[Fe(CN)<sub>6</sub>]</button>
+                <button class="interactive-btn" id="tool-k4" onclick="selectTool2('k4')" disabled>🧪 Реактив K<sub>4</sub>[Fe(CN)<sub>6</sub>]</button>
+                <button class="interactive-btn" id="tool-kscn" onclick="selectTool2('kscn')" disabled>🧪 Реактив KSCN</button>
+            </div>
+
+            <div class="question-box" id="q-box-e2" style="display: none;">
+                <label><strong>Завдання на спостереження:</strong> Оберіть правильну пару аналітичних ефектів для визначення іонів заліза:</label>
+                <select id="ans-e2">
+                    <option value="">-- Оберіть правильну наукову відповідь --</option>
+                    <option value="correct">Іони Fe2+ утворюють темно-синій осад турнбулевої сині з K3[Fe(CN)6], а іони Fe3+ утворюють темно-синій осад берлінської лазурі з K4[Fe(CN)6] та криваво-червоне забарвлення з KSCN.</option>
+                    <option value="wrong1">Обидва іони дають однакове криваво-червоне забарвлення з усіма кров'яними солями.</option>
+                    <option value="wrong2">Для визначення Fe3+ використовують виключно червону кров'яну сіль, яка дає білий пластівчастий осад.</option>
+                </select>
+                <br>
+                <button class="action-btn" onclick="submitExp2()">Завершити роботу та згенерувати звіт</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЕКРАН 4: ЗВІТ -->
+    <div id="scr-report" class="screen">
+        <h3>ОФІЦІЙНИЙ ЛАБОРАТОРНИЙ ПРОТОКОЛ СТУДЕНТА</h3>
+        <div class="step-instruction" style="border-left-color: var(--success-color);">
+            Усі дослідження успішно виконано. Нижче сформовано ваш підсумковий документ. Його можна зберегти у PDF, скопіювати або роздрукувати.
+        </div>
+        <div id="report-text"></div>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 25px;">
+            <button class="action-btn" onclick="printToPDF()" style="background-color: var(--accent-color); margin: 0;">🖨️ Друк / Зберегти в PDF (Безвідмовно)</button>
+            <button class="action-btn" onclick="downloadProtocol()" style="background-color: var(--success-color); margin: 0;">💾 Зберегти як текстовий файл (.txt)</button>
+            <button class="action-btn" onclick="copyProtocol()" style="background-color: #2b6cb0; margin: 0;">📋 Скопіювати в буфер обміну</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentStudent = "";
+    let score = 0;
+    let activeTool1 = "";
+    let activeTool2 = "";
+
+    // Стани досліду 1
+    let e1Shavings = [false, false, false];
+    let e1Acids = [false, false, false];
+    let e1Heated = false;
+
+    // Стани досліду 2 (на окремих пробірках)
+    let e2K3Done = [false, false]; // пробірки 1, 2
+    let e2K4Done = [false, false]; // пробірки 3, 4
+    let e2KSCNDone = [false, false]; // пробірки 5, 6
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const duration = type === 'boil' ? 3.0 : 0.6;
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        if (type === 'pour') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(180, audioCtx.currentTime + duration);
+            gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } else if (type === 'fire') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        } else if (type === 'boil') {
+            let interval = setInterval(() => {
+                if (audioCtx.state === 'suspended') return;
+                const tOsc = audioCtx.createOscillator();
+                const tGain = audioCtx.createGain();
+                tOsc.connect(tGain); tGain.connect(audioCtx.destination);
+                tOsc.frequency.setValueAtTime(100 + Math.random() * 80, audioCtx.currentTime);
+                tGain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                tGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+                tOsc.start(); tOsc.stop(audioCtx.currentTime + 0.08);
+            }, 50);
+            setTimeout(() => clearInterval(interval), duration * 1000);
+        }
+    }
+
+    function setProgress(pct) {
+        document.getElementById('labProgress').style.width = pct + '%';
+    }
+
+    function initLab() {
+        const name = document.getElementById('studName').value.trim();
+        if(!name) {
+            alert("Будь ласка, введіть своє Прізвище та Ім'я!");
+            return;
+        }
+        currentStudent = name;
+        document.getElementById('scr-auth').classList.remove('active');
+        document.getElementById('scr-exp1').classList.add('active');
+        setProgress(33);
+    }
+
+    function moveLamp(lampId, wrapperId) {
+        const lamp = document.getElementById(lampId);
+        const wrapper = document.getElementById(wrapperId);
+        const bench = document.querySelector('.lab-bench');
+        lamp.style.display = 'block';
+        const targetLeft = (wrapper.getBoundingClientRect().left - bench.getBoundingClientRect().left) + (wrapper.offsetWidth / 2) - 27.5;
+        lamp.style.left = targetLeft + "px";
+        lamp.querySelector('.wick-fire').style.display = 'block';
+        playSound('fire');
+    }
+
+    function shuffleOptions(selectId) {
+        const select = document.getElementById(selectId);
+        const options = Array.from(select.options);
+        const placeholder = options[0];
+        const remaining = options.slice(1);
+        for (let i = remaining.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+        }
+        select.innerHTML = '';
+        select.appendChild(placeholder);
+        remaining.forEach(opt => select.appendChild(opt));
+    }
+
+    function runDrip(pipetteId, dropId, color, callback) {
+        const pip = document.getElementById(pipetteId);
+        const drop = document.getElementById(dropId);
+        pip.style.display = 'block';
+        drop.style.backgroundColor = color;
+        drop.style.opacity = '1';
+        drop.style.animation = 'drip 0.5s linear forwards';
+        playSound('pour');
+        setTimeout(() => {
+            drop.style.animation = '';
+            drop.style.opacity = '0';
+            pip.style.display = 'none';
+            callback();
+        }, 500);
+    }
+
+    function selectTool1(tool) {
+        activeTool1 = tool;
+        document.querySelectorAll('#tools-e1 .interactive-btn').forEach(b => b.classList.remove('active-tool'));
+        if(tool) document.getElementById(`tool-${tool}`).classList.add('active-tool');
+    }
+
+    function interactTube1(num) {
+        if (!activeTool1) return;
+        const idx = num - 1;
+
+        if (activeTool1 === 'fe') {
+            if (e1Shavings[idx]) return;
+            e1Shavings[idx] = true;
+            document.getElementById(`shav${num}`).style.display = 'block';
+            if (e1Shavings.every(v => v)) {
+                document.getElementById('tool-fe').disabled = true;
+                document.getElementById('tool-hcl').disabled = false;
+                selectTool1('');
+                document.getElementById('exp1-guide').innerHTML = `<strong>Крок 2:</strong> Стружку додано. Оберіть розчин <strong>"Розбавлена HCl"</strong> та налийте її у Пробірку №1.`;
+            }
+        }
+        else if (activeTool1 === 'hcl' && num === 1) {
+            runDrip('pip1', 'drop1', 'rgba(200,200,200,0.5)', () => {
+                e1Acids[0] = true;
+                document.getElementById('liq1').style.height = '50%';
+                document.getElementById('liq1').style.backgroundColor = 'rgba(210,230,210,0.4)';
+                document.getElementById('bub1').style.display = 'block';
+                createBubbles('bub1', 10, 'rgba(255,255,255,0.85)');
+                document.getElementById('t1-title').innerHTML = "1: Fe + HCl (розб.)<br>(Виділення газу H<sub>2</sub>↑)";
+                document.getElementById('tool-hcl').disabled = true;
+                document.getElementById('tool-h2so4').disabled = false;
+                selectTool1('');
+                document.getElementById('exp1-guide').innerHTML = `<strong>Крок 3:</strong> Оберіть розчин <strong>"Концентрована H<sub>2</sub>SO<sub>4</sub>"</strong> та додайте її у Пробірку №2.`;
+            });
+        }
+        else if (activeTool1 === 'h2so4' && num === 2) {
+            runDrip('pip2', 'drop2', 'rgba(200,200,200,0.5)', () => {
+                e1Acids[1] = true;
+                document.getElementById('liq2').style.height = '50%';
+                document.getElementById('liq2').style.backgroundColor = 'rgba(240,240,240,0.5)';
+                document.getElementById('t2-title').innerHTML = "2: Fe + H<sub>2</sub>SO<sub>4</sub> (конц.)<br>(Холод: пасивація)";
+                document.getElementById('tool-h2so4').disabled = true;
+                document.getElementById('tool-hno3').disabled = false;
+                selectTool1('');
+                document.getElementById('exp1-guide').innerHTML = `<strong>Крок 4:</strong> Оберіть розчин <strong>"Концентрована HNO<sub>3</sub>"</strong> та додайте її у Пробірку №3.`;
+            });
+        }
+        else if (activeTool1 === 'hno3' && num === 3) {
+            runDrip('pip3', 'drop3', 'rgba(200,200,200,0.5)', () => {
+                e1Acids[2] = true;
+                document.getElementById('liq3').style.height = '50%';
+                document.getElementById('liq3').style.backgroundColor = 'rgba(240,240,240,0.5)';
+                document.getElementById('t3-title').innerHTML = "3: Fe + HNO<sub>3</sub> (конц.)<br>(Холод: пасивація)";
+                document.getElementById('tool-hno3').disabled = true;
+                document.getElementById('tool-heat1').disabled = false;
+                selectTool1('');
+                document.getElementById('exp1-guide').innerHTML = `<strong>Крок 5:</strong> На холоді концентровані кислоти пасивували залізо. Оберіть інструмент <strong>"🔥 Запалити спиртівку та нагріти"</strong> для активації термічних процесів у пробірках №2 та №3.`;
+            });
+        }
+        else if (activeTool1 === 'heat1') {
+            if (!e1Acids[2]) return;
+            runSequentialHeating();
+        }
+    }
+
+    function createBubbles(id, count, bubbleColor = 'rgba(255,255,255,0.85)') {
+        const container = document.getElementById(id);
+        container.style.display = 'block';
+        container.innerHTML = '';
+        for(let i=0; i < count; i++) {
+            let b = document.createElement('div');
+            b.className = 'bubble';
+            let size = Math.random() * 4 + 3;
+            b.style.width = size + 'px'; b.style.height = size + 'px';
+            b.style.backgroundColor = bubbleColor;
+            b.style.setProperty('--b-l', (Math.random() * 70 + 15) + '%');
+            b.style.animationDelay = (Math.random() * 0.7) + 's';
+            container.appendChild(b);
+        }
+    }
+
+    function runSequentialHeating() {
+        document.getElementById('tool-heat1').disabled = true;
+        selectTool1('');
+
+        // Нагрівання пробірки 2
+        moveLamp('lamp1', 'w2');
+        document.getElementById('exp1-guide').innerHTML = `<em>Нагріваємо Пробірку №2 з концентрованою H<sub>2</sub>SO<sub>4</sub>...</em>`;
+        
+        setTimeout(() => {
+            playSound('boil');
+            createBubbles('bub2', 25, 'rgba(255,255,255,0.85)');
+            document.getElementById('liq2').style.backgroundColor = 'rgba(222,184,135,0.6)';
+            document.getElementById('t2-title').innerHTML = "2: Fe + H<sub>2</sub>SO<sub>4</sub> (конц.) + t°<br>(Буйне виділення SO<sub>2</sub>↑)";
+        }, 2000);
+
+        // Перенесення під пробірку 3
+        setTimeout(() => {
+            moveLamp('lamp1', 'w3');
+            document.getElementById('exp1-guide').innerHTML = `<em>Нагріваємо Пробірку №3 з концентрованою HNO<sub>3</sub>...</em>`;
+        }, 5000);
+
+        setTimeout(() => {
+            playSound('boil');
+            // Ефект бурих бульбашок і бурого газу NO2 у верхній частині пробірки
+            createBubbles('bub3', 30, 'rgba(139,69,19,0.85)'); 
+            document.getElementById('liq3').style.backgroundColor = 'rgba(210,105,30,0.5)'; // Буруватий розчин
+            document.getElementById('vapor3').style.opacity = '1'; // Поява бурого газу NO2
+            document.getElementById('t3-title').innerHTML = "3: Fe + HNO<sub>3</sub> (конц.) + t°<br>(Виділення бурого газу NO<sub>2</sub>↑)";
+        }, 7000);
+
+        // Завершення досліду 1
+        setTimeout(() => {
+            document.getElementById('fire1').style.display = 'none';
+            document.getElementById('lamp1').style.display = 'none';
+            shuffleOptions('ans-e1');
+            document.getElementById('q-box-e1').style.display = 'block';
+            document.getElementById('exp1-guide').innerHTML = `<strong>Крок 6:</strong> Термічні реакції завершено. Проаналізуйте процеси пасивації та руйнування плівок і дайте відповідь на запитання.`;
+        }, 9500);
+    }
+
+    function submitExp1() {
+        const val = document.getElementById('ans-e1').value;
+        if(!val) { alert("Будь ласка, оберіть відповідь!"); return; }
+        if(val === 'correct') score += 1;
+
+        document.getElementById('scr-exp1').classList.remove('active');
+        document.getElementById('scr-exp2').classList.add('active');
+        setProgress(66);
+    }
+
+    function selectTool2(tool) {
+        activeTool2 = tool;
+        document.querySelectorAll('#tools-e2 .interactive-btn').forEach(b => b.classList.remove('active-tool'));
+        if(tool) document.getElementById(`tool-${tool}`).classList.add('active-tool');
+    }
+
+    function interactTube2(num) {
+        if (!activeTool2) return;
+
+        const liq = document.getElementById(`e2-liq${num}`);
+        const prep = document.getElementById(`e2-prep${num}`);
+        const title = document.getElementById(`e2-t${num}-title`);
+
+        // А: Реакція з K3 (Тільки для пробірок 1 та 2)
+        if (activeTool2 === 'k3') {
+            if (num !== 1 && num !== 2) {
+                alert("Червону кров'яну сіль потрібно додавати в Секцію А (пробірки 1 та 2)!");
+                return;
+            }
+            const idx = num - 1;
+            if (e2K3Done[idx]) return;
+            e2K3Done[idx] = true;
+
+            if (num === 1) {
+                runDrip('e2-pip1', 'e2-drop1', '#e5c158', () => {
+                    liq.style.height = '55%';
+                    prep.style.height = '40%';
+                    prep.style.backgroundColor = 'rgba(0, 32, 96, 0.95)'; // Темно-синій осад Турнбулевої сині
+                    title.innerHTML = "1: FeSO<sub>4</sub> + K<sub>3</sub>[Fe(CN)<sub>6</sub>]<br><span style='color: #002060; font-weight: bold;'>Турнбулева синь ↓</span>";
+                    checkE3StepA();
+                });
+            } else if (num === 2) {
+                runDrip('e2-pip2', 'e2-drop2', '#e5c158', () => {
+                    liq.style.height = '55%';
+                    liq.style.backgroundColor = 'rgba(160, 110, 60, 0.7)'; // Буре забарвлення розчину
+                    title.innerHTML = "2: FeCl<sub>3</sub> + K<sub>3</sub>[Fe(CN)<sub>6</sub>]<br><span style='color: #8b5a2b;'>Буре забарвлення</span>";
+                    checkE3StepA();
+                });
+            }
+        }
+        // Б: Реакція з K4 (Тільки для пробірок 3 та 4)
+        else if (activeTool2 === 'k4') {
+            if (num !== 3 && num !== 4) {
+                alert("Жовту кров'яну сіль потрібно додавати в Секцію Б (пробірки 3 та 4)!");
+                return;
+            }
+            const idx = num - 3;
+            if (e2K4Done[idx]) return;
+            e2K4Done[idx] = true;
+
+            if (num === 3) {
+                runDrip('e2-pip3', 'e2-drop3', '#f0e68c', () => {
+                    liq.style.height = '55%';
+                    prep.style.height = '20%';
+                    prep.style.backgroundColor = 'rgba(173,216,230,0.8)'; // Блакитний малохарактерний осад
+                    title.innerHTML = "3: FeSO<sub>4</sub> + K<sub>4</sub>[Fe(CN)<sub>6</sub>]<br><span style='color: #6a9eb5;'>Блакитний осад ↓</span>";
+                    checkE3StepB();
+                });
+            } else if (num === 4) {
+                runDrip('e2-pip4', 'e2-drop4', '#f0e68c', () => {
+                    liq.style.height = '55%';
+                    prep.style.height = '45%';
+                    prep.style.backgroundColor = 'rgba(0, 51, 153, 0.98)'; // Берлінська лазур
+                    title.innerHTML = "4: FeCl<sub>3</sub> + K<sub>4</sub>[Fe(CN)<sub>6</sub>]<br><span style='color: #003399; font-weight: bold;'>Берлінська лазур ↓</span>";
+                    checkE3StepB();
+                });
+            }
+        }
+        // В: Реакція з KSCN (Тільки для пробірок 5 та 6)
+        else if (activeTool2 === 'kscn') {
+            if (num !== 5 && num !== 6) {
+                alert("Роданід калію KSCN потрібно додавати в Секцію В (пробірки 5 та 6)!");
+                return;
+            }
+            const idx = num - 5;
+            if (e2KSCNDone[idx]) return;
+            e2KSCNDone[idx] = true;
+
+            if (num === 5) {
+                runDrip('e2-pip5', 'e2-drop5', 'rgba(255,255,255,0.8)', () => {
+                    liq.style.height = '55%';
+                    title.innerHTML = "5: FeSO<sub>4</sub> + KSCN<br><span style='color: #555;'>Без змін</span>";
+                    checkE3StepC();
+                });
+            } else if (num === 6) {
+                runDrip('e2-pip6', 'e2-drop6', 'rgba(255,255,255,0.8)', () => {
+                    liq.style.height = '55%';
+                    liq.style.backgroundColor = 'rgba(139,0,0,0.95)'; // Криваво-червоний роданід феруму
+                    title.innerHTML = "6: FeCl<sub>3</sub> + KSCN<br><span style='color: #8b0000; font-weight: bold;'>Криваво-червоний роданід</span>";
+                    checkE3StepC();
+                });
+            }
+        }
+    }
+
+    function checkE3StepA() {
+        if (e2K3Done[0] && e2K3Done[1]) {
+            document.getElementById('tool-k3').disabled = true;
+            document.getElementById('tool-k4').disabled = false;
+            selectTool2('');
+            document.getElementById('exp2-guide').innerHTML = `<strong>Крок 2:</strong> Червону кров'яну сіль додано. Оберіть наступний якісний реагент <strong>"Жовта кров'яна сіль K<sub>4</sub>[Fe(CN)<sub>6</sub>]"</strong> та внесіть його в Секцію Б (пробірки 3 та 4).`;
+        }
+    }
+
+    function checkE3StepB() {
+        if (e2K4Done[0] && e2K4Done[1]) {
+            document.getElementById('tool-k4').disabled = true;
+            document.getElementById('tool-kscn').disabled = false;
+            selectTool2('');
+            document.getElementById('exp2-guide').innerHTML = `<strong>Крок 3:</strong> Жовту кров'яну сіль додано. Оберіть останній якісний реагент <strong>"Роданід калію KSCN"</strong> та додайте в Секцію В (пробірки 5 та 6).`;
+        }
+    }
+
+    function checkE3StepC() {
+        if (e2KSCNDone[0] && e2KSCNDone[1]) {
+            document.getElementById('tool-kscn').disabled = true;
+            selectTool2('');
+            shuffleOptions('ans-e2');
+            document.getElementById('q-box-e2').style.display = 'block';
+            document.getElementById('exp2-guide').innerHTML = `<strong>Крок 4:</strong> Усі реакції на окремих парах пробірок успішно завершено! Порівняйте кольорові ефекти та оберіть науковий висновок.`;
+        }
+    }
+
+    function submitExp2() {
+        const val = document.getElementById('ans-e2').value;
+        if(!val) { alert("Будь ласка, оберіть науковий висновок!"); return; }
+        if(val === 'correct') score += 1;
+
+        document.getElementById('scr-exp2').classList.remove('active');
+        document.getElementById('scr-report').classList.add('active');
+        setProgress(100);
+        generateFinalReport();
+    }
+
+    function printToPDF() {
+        const element = document.getElementById('report-text');
+        
+        const opt = {
+            margin:       [15, 15, 15, 15], 
+            filename:     `Звіт_ЛР14_${currentStudent.replace(/\s+/g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true,
+                logging: false,
+                letterRendering: true,
+                scrollY: 0, // Фіксація зсуву по Y для уникнення обрізання вмісту
+                windowWidth: 800 // Стабільна ширина рендерингу для А4 аркуша
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+        
+        // Тимчасово прибираємо тіні та бордери для чистого друку без рамки
+        const origStyle = element.style.cssText;
+        element.style.boxShadow = 'none';
+        element.style.border = 'none';
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            element.style.cssText = origStyle;
+        });
+    }
+
+    function downloadProtocol() {
+        const text = document.getElementById('report-text').innerText;
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Звіт_ЛР14_${currentStudent.replace(/\s+/g, '_')}.txt`;
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    function copyProtocol() {
+        const text = document.getElementById('report-text').innerText;
+        const tArea = document.createElement('textarea');
+        tArea.value = text; document.body.appendChild(tArea); tArea.select();
+        try {
+            document.execCommand('copy');
+            alert("Звіт успішно скопійовано в буфер обміну!");
+        } catch (err) {
+            alert("Будь ласка, виділіть та скопіюйте текст звіту вручну.");
+        }
+        document.body.removeChild(tArea);
+    }
+
+    function generateFinalReport() {
+        const now = new Date().toLocaleString('uk-UA');
+        
+        let html = `
+            <div style="padding: 10px; color: #000; background: #fff; font-family: 'Times New Roman', Times, serif; line-height: 1.5;">
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <h2 style="font-size: 22px; font-weight: bold; margin: 0; text-transform: uppercase;">ОФІЦІЙНИЙ ЛАБОРАТОРНИЙ ПРОТОКОЛ</h2>
+                    <h3 style="font-size: 18px; font-weight: normal; margin: 5px 0 0 0;">з лабораторної роботи № 14</h3>
+                    <h4 style="font-size: 16px; font-weight: bold; margin: 5px 0 0 0; color: #555;">«Дослідження властивостей заліза та його сполук»</h4>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 16px;">
+                    <tr>
+                        <td style="padding: 6px 0; border-bottom: 1px dashed #ccc; width: 40%;"><strong>Виконавець (студент):</strong></td>
+                        <td style="padding: 6px 0; border-bottom: 1px dashed #ccc; font-size: 17px; font-weight: bold;">${currentStudent}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; border-bottom: 1px dashed #ccc;"><strong>Дата виконання сесії:</strong></td>
+                        <td style="padding: 6px 0; border-bottom: 1px dashed #ccc;">${now}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; border-bottom: 1px dashed #ccc;"><strong>Теоретичний контроль:</strong></td>
+                        <td style="padding: 6px 0; border-bottom: 1px dashed #ccc; font-weight: bold; color: ${score === 2 ? 'green' : 'orange'};">${score} з 2 правильних відповідей</td>
+                    </tr>
+                </table>
+                
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 17px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 10px; text-transform: uppercase;">1. Дослідження дії кислот на залізо (Дослід 1)</h3>
+                    <p style="margin: 0 0 10px 0; text-align: justify;">
+                        Під час проведення досліду було досліджено взаємодію металевого заліза з розбавленими та концентрованими кислотами на холоді та при нагріванні.
+                    </p>
+                    <ul style="margin: 0 0 15px 20px; padding: 0;">
+                        <li style="margin-bottom: 8px;">
+                            <strong>Розбавлена хлоридна кислота (HCl):</strong> активно реагує із залізом на холоді з виділенням безбарвного газу (водню) та утворенням солі заліза(II):
+                            <div style="font-family: monospace; background: #f5f5f5; padding: 6px; margin-top: 4px; border-left: 3px solid #8c2d19;">Fe + 2HCl &rarr; FeCl<sub>2</sub> + H<sub>2</sub>&uarr;</div>
+                        </li>
+                        <li style="margin-bottom: 8px;">
+                            <strong>Концентрована сульфатна кислота (H<sub>2</sub>SO<sub>4</sub>):</strong> на холоді пасивує залізо завдяки утворенню щільної захисної оксидної плівки. При нагріванні пасивуючий шар руйнується, залізо окиснюється до Fe<sup>3+</sup> з виділенням безбарвного газу з різким запахом (сульфур(IV) оксиду):
+                            <div style="font-family: monospace; background: #f5f5f5; padding: 6px; margin-top: 4px; border-left: 3px solid #8c2d19;">2Fe + 6H<sub>2</sub>SO<sub>4</sub>(конц) <span style="font-size: 11px;">(t&deg;)</span> &rarr; Fe<sub>2</sub>(SO<sub>4</sub>)<sub>3</sub> + 3SO<sub>2</sub>&uarr; + 6H<sub>2</sub>O</div>
+                        </li>
+                        <li style="margin-bottom: 8px;">
+                            <strong>Концентрована нітратна кислота (HNO<sub>3</sub>):</strong> на холоді пасивує метал. При нагріванні відбувається бурхлива реакція з руйнуванням плівки, виділенням інтенсивного <strong>бурого газу NO<sub>2</sub></strong> (нітроген(IV) оксиду) та окисненням заліза до вищого ступеня ступеня (+3):
+                            <div style="font-family: monospace; background: #f5f5f5; padding: 6px; margin-top: 4px; border-left: 3px solid #8c2d19;">Fe + 6HNO<sub>3</sub>(конц) <span style="font-size: 11px;">(t&deg;)</span> &rarr; Fe(NO<sub>3</sub>)<sub>3</sub> + 3NO<sub>2</sub>&uarr; + 3H<sub>2</sub>O</div>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h3 style="font-size: 17px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 10px; text-transform: uppercase;">2. Виявлення у розчині іонів Fe<sup>2+</sup> та Fe<sup>3+</sup> (Дослід 2)</h3>
+                    <p style="margin: 0 0 10px 0; text-align: justify;">
+                        Для ідентифікації катіонів заліза Fe<sup>2+</sup> та Fe<sup>3+</sup> було проведено якісні реакції з гексаціанофератами та роданідом калію:
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 15px;">
+                        <thead>
+                            <tr style="background-color: #f2f2f2;">
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 30%;">Реактив</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 35%;">Катіон Fe<sup>2+</sup> (FeSO<sub>4</sub>)</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 35%;">Катіон Fe<sup>3+</sup> (FeCl<sub>3</sub>)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border: 1px solid #ddd; padding: 8px;"><strong>K<sub>3</sub>[Fe(CN)<sub>6</sub>]</strong><br><small>(червона сіль)</small></td>
+                                <td style="border: 1px solid #ddd; padding: 8px; background-color: #e6f0fa;"><strong>Темно-синій осад</strong><br>(турнбулева синь)<br><small>3Fe<sup>2+</sup> + 2[Fe(CN)<sub>6</sub>]<sup>3-</sup> &rarr; Fe<sub>3</sub>[Fe(CN)<sub>6</sub>]<sub>2</sub>&darr;</small></td>
+                                <td style="border: 1px solid #ddd; padding: 8px;">Буро-зелене забарвлення розчину (реакція відсутня)</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #ddd; padding: 8px;"><strong>K<sub>4</sub>[Fe(CN)<sub>6</sub>]</strong><br><small>(жовта сіль)</small></td>
+                                <td style="border: 1px solid #ddd; padding: 8px;">Світло-блакитний осад (малохарактерний)</td>
+                                <td style="border: 1px solid #ddd; padding: 8px; background-color: #e6f0fa;"><strong>Темно-синій осад</strong><br>(берлінська лазур)<br><small>4Fe<sup>3+</sup> + 3[Fe(CN)<sub>6</sub>]<sup>4-</sup> &rarr; Fe<sub>4</sub>[Fe(CN)<sub>6</sub>]<sub>3</sub>&darr;</small></td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #ddd; padding: 8px;"><strong>KSCN</strong><br><small>(калій роданід)</small></td>
+                                <td style="border: 1px solid #ddd; padding: 8px;">Без видимих змін</td>
+                                <td style="border: 1px solid #ddd; padding: 8px; background-color: #ffe6e6;"><strong>Криваво-червоний розчин</strong><br>(роданід заліза)<br><small>Fe<sup>3+</sup> + 3SCN<sup>-</sup> &rarr; Fe(SCN)<sub>3</sub></small></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 20px; page-break-inside: avoid;">
+                    <h3 style="font-size: 17px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 10px; text-transform: uppercase;">Висновок</h3>
+                    <p style="margin: 0; text-align: justify; font-style: italic;">
+                        Експериментально доведено хімічні особливості заліза: метал легко розчиняється в розбавлених кислотах-неокисниках, але пасивується концентрованими кислотами-окисниками на холоді. При нагріванні пасивація знімається з виділенням відповідних газоподібних продуктів відновлення кислот (SO<sub>2</sub> та бурого NO<sub>2</sub>). Унікальні якісні реакції з гексаціанофератами та роданідами дозволяють високочутливо ідентифікувати іони Fe<sup>2+</sup> та Fe<sup>3+</sup> у досліджуваних розчинах за утворенням яскравих аналітичних ефектів.
+                    </p>
+                </div>
+            </div>
+        `;
+        document.getElementById('report-text').innerHTML = html;
+    }
+</script>
+
+</body>
+</html>
